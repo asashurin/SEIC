@@ -1,0 +1,67 @@
+*&---------------------------------------------------------------------*
+*& Report  ZSEIC_CHECK_MAIL
+*&
+*&---------------------------------------------------------------------*
+*&
+*&
+*&---------------------------------------------------------------------*
+
+REPORT ZSEIC_CHECK_MAIL.
+
+DATA: MAIL_TAB LIKE TABLE OF SOMT WITH HEADER LINE.
+DATA: SNDR TYPE SOUDK.
+DATA: mail_sp TYPE SOUDK.
+DATA: mail_addr TYPE SYMSGV.
+
+PARAMETERS: SND_AT TYPE SOOD-CHDAT DEFAULT SY-DATUM,
+            M_THEME TYPE SOOD-OBJDES.
+
+
+SELECT SINGLE USRTP USRYR USRNO
+  INTO (SNDR-USRTP, SNDR-USRYR, SNDR-USRNO)
+  FROM SOUD
+  WHERE USRTP = 'USR' AND SAPNAM = SY-UNAME.
+
+IF SY-SUBRC <> 0.
+  MESSAGE 'USER HAS NO SAP OFFICE NAME' TYPE 'E'.
+  EXIT.
+ENDIF.
+
+CALL FUNCTION 'SO_OBJECT_ATTRIBUTE_SEARCH'
+EXPORTING
+  CREATED_BY = SNDR
+  MODIFIED_FROM = SND_AT
+  MODIFIED_TO = SND_AT
+*"     REFERENCE(RECIPIENT) LIKE  SOUDK STRUCTURE  SOUDK OPTIONAL
+  OUTBOX = 'X'
+TABLES
+  RESULT = MAIL_TAB.
+
+
+LOOP AT MAIL_TAB.
+
+  SELECT SINGLE  RECTP RECYR RECNO
+    INTO (mail_sp-USRTP, mail_sp-USRYR, mail_sp-USRNO)
+    FROM SOOS
+    WHERE OBJTP = MAIL_TAB-DOCTP AND
+          OBJYR = MAIL_TAB-DOCYR AND
+          OBJNO = MAIL_TAB-DOCNO.
+
+  IF SY-SUBRC <> 0.
+    MESSAGE 'Has not been sent yet' TYPE 'I'.
+    EXIT.
+  ENDIF.
+
+ SELECT SINGLE MSGV1
+   INTO MAIL_ADDR
+   FROM SOES
+   WHERE RECTP = mail_sp-USRTP AND
+         RECYR = mail_sp-USRYR AND
+         RECNO = mail_sp-USRNO.
+
+ WRITE: / MAIL_TAB-DOCDES,' sent to:',MAIL_ADDR,' at:',MAIL_TAB-SDTIM.
+
+ENDLOOP.
+
+WRITE: / .
+write: / 'Finished !'.
